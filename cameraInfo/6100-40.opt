@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<OpticalProperties version="1.0">
+	<Id>0</Id>
+	<Name>SONY</Name>
+	<Description/>
+	<ImageDimensions>
+		<Width>9504</Width>
+		<Height>6336</Height>
+	</ImageDimensions>
+	<CameraModelType>Perspective</CameraModelType>
+	<CameraModelBand>Visible</CameraModelBand>
+	<SensorSize>35.7</SensorSize>
+	<FocalLength>40.7435817503887</FocalLength>
+	<Distortion>
+		<K1>-0.0446364695098596</K1>
+		<K2>0.0625949881401334</K2>
+		<K3>-0.0017812883653208</K3>
+		<P1>-0.000103378569469934</P1>
+		<P2>-0.000454308593249142</P2>
+		<Direct>true</Direct>
+	</Distortion>
+	<PrincipalPoint>
+		<X>4771.6003367672</X>
+		<Y>3189.45639435961</Y>
+	</PrincipalPoint>
+	<AspectRatio>1</AspectRatio>
+	<Skew>0</Skew>
+	<Exif>
+	</Exif>
+</OpticalProperties>

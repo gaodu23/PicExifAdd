@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<OpticalProperties version="1.0">
+	<Id>0</Id>
+	<Name>Photogroup 1</Name>
+	<Description/>
+	<ImageDimensions>
+		<Width>11648</Width>
+		<Height>8736</Height>
+	</ImageDimensions>
+	<CameraModelType>Perspective</CameraModelType>
+	<CameraModelBand>Visible</CameraModelBand>
+	<SensorSize>43.8</SensorSize>
+	<FocalLength>57.2197155607408</FocalLength>
+	<Distortion>
+		<K1>0.0248439045057643</K1>
+		<K2>-0.0216873834545053</K2>
+		<K3>-0.0354041334340298</K3>
+		<P1>0.000615595273273578</P1>
+		<P2>0.000333138984373944</P2>
+		<Direct>true</Direct>
+	</Distortion>
+	<PrincipalPoint>
+		<X>5853.64524442594</X>
+		<Y>4487.78070994499</Y>
+	</PrincipalPoint>
+	<AspectRatio>1</AspectRatio>
+	<Skew>0</Skew>
+</OpticalProperties>

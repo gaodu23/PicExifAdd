@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<OpticalProperties version="1.0">
+	<Id>0</Id>
+	<Name/>
+	<Description/>
+	<Directory/>
+	<ImageDimensions>
+		<Width>6000</Width>
+		<Height>4000</Height>
+	</ImageDimensions>
+	<CameraModelType>Perspective</CameraModelType>
+	<CameraModelBand>Visible</CameraModelBand>
+	<SensorSizeDb>23.5</SensorSizeDb>
+	<SensorSize>23.5</SensorSize>
+	<FocalLength>35.8370567950898</FocalLength>
+	<Distortion>
+		<K1>0.000590227580674907</K1>
+		<K2>-0.162407775638787</K2>
+		<K3>0.159796948766394</K3>
+		<P1>0</P1>
+		<P2>0</P2>
+		<Direct>true</Direct>
+	</Distortion>
+	<PrincipalPoint>
+		<X>2761.87629888022</X>
+		<Y>2067.67149996699</Y>
+	</PrincipalPoint>
+	<AspectRatio>1</AspectRatio>
+	<Skew>0</Skew>
+	<Exif>
+		<Make>SONY</Make>
+		<Model>ILCE-5100</Model>
+		<LensModel>----</LensModel>
+	</Exif>
+</OpticalProperties>
