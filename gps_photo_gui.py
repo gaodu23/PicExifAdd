@@ -20,253 +20,6 @@ except ImportError:
     OPT_CONVERTER_AVAILABLE = False
     print("警告: 未找到opt_converter.py，无法使用相机畸变参数转换功能")
 
-class CSVColumnMappingDialog:
-    """CSV列映射对话框"""
-    def __init__(self, parent, csv_file):
-        self.parent = parent
-        self.csv_file = csv_file
-        self.result = None
-        self.columns = []
-        
-        # 读取CSV文件获取列信息
-        try:
-            with open(csv_file, 'r', encoding='utf-8-sig') as f:
-                reader = csv.reader(f)
-                first_row = next(reader)
-                # 检查是否有表头
-                if any(keyword in first_row[0].lower() for keyword in 
-                       ['文件名', 'filename', '纬度', '经度', 'latitude', 'longitude']):
-                    self.columns = first_row
-                    self.has_header = True
-                else:
-                    # 如果没有表头，生成列号
-                    self.columns = [f"列{i+1}" for i in range(len(first_row))]
-                    self.has_header = False
-        except Exception as e:
-            messagebox.showerror("错误", f"无法读取CSV文件: {e}")
-            return
-        
-        self.setup_dialog()
-    
-    def setup_dialog(self):
-        """创建对话框"""
-        self.dialog = tk.Toplevel(self.parent)
-        self.dialog.title("CSV列映射设置")
-        self.dialog.geometry("800x700")  # 增大窗口以容纳预览内容
-        self.dialog.resizable(True, True)
-        self.dialog.transient(self.parent)
-        self.dialog.grab_set()
-        
-        # 居中显示
-        self.dialog.geometry("+%d+%d" % (
-            self.parent.winfo_rootx() + 50,
-            self.parent.winfo_rooty() + 50
-        ))
-        
-        # 主框架
-        main_frame = ttk.Frame(self.dialog, padding="20")
-        main_frame.pack(fill=tk.BOTH, expand=True)
-        
-        # 标题
-        title_label = ttk.Label(main_frame, text="请选择CSV文件中各字段对应的列：", 
-                               font=('Arial', 12, 'bold'))
-        title_label.pack(pady=(0, 10))
-        
-        # 文件信息
-        info_text = f"文件: {os.path.basename(self.csv_file)}\n"
-        info_text += f"格式: {'有表头' if self.has_header else '无表头'}\n"
-        info_text += f"列数: {len(self.columns)}"
-        
-        info_label = ttk.Label(main_frame, text=info_text, foreground="gray")
-        info_label.pack(pady=(0, 10))
-        
-        # 列选择区域
-        mapping_frame = ttk.LabelFrame(main_frame, text="字段映射", padding=10)
-        mapping_frame.pack(fill=tk.X, pady=(0, 10))
-        
-        # 文件名列选择
-        ttk.Label(mapping_frame, text="文件名列:", width=15).grid(row=0, column=0, sticky=tk.W, pady=5)
-        self.filename_var = tk.StringVar()
-        self.filename_combo = ttk.Combobox(mapping_frame, textvariable=self.filename_var, 
-                                          values=self.columns, state="readonly", width=25)
-        self.filename_combo.grid(row=0, column=1, sticky=tk.W, padx=(10, 0), pady=5)
-        
-        # 纬度列选择
-        ttk.Label(mapping_frame, text="纬度列:", width=15).grid(row=1, column=0, sticky=tk.W, pady=5)
-        self.latitude_var = tk.StringVar()
-        self.latitude_combo = ttk.Combobox(mapping_frame, textvariable=self.latitude_var, 
-                                          values=self.columns, state="readonly", width=25)
-        self.latitude_combo.grid(row=1, column=1, sticky=tk.W, padx=(10, 0), pady=5)
-        
-        # 经度列选择
-        ttk.Label(mapping_frame, text="经度列:", width=15).grid(row=2, column=0, sticky=tk.W, pady=5)
-        self.longitude_var = tk.StringVar()
-        self.longitude_combo = ttk.Combobox(mapping_frame, textvariable=self.longitude_var, 
-                                           values=self.columns, state="readonly", width=25)
-        self.longitude_combo.grid(row=2, column=1, sticky=tk.W, padx=(10, 0), pady=5)
-        
-        # 海拔列选择
-        ttk.Label(mapping_frame, text="海拔列:", width=15).grid(row=3, column=0, sticky=tk.W, pady=5)
-        self.altitude_var = tk.StringVar()
-        self.altitude_combo = ttk.Combobox(mapping_frame, textvariable=self.altitude_var, 
-                                          values=["不使用"] + self.columns, state="readonly", width=25)
-        self.altitude_combo.grid(row=3, column=1, sticky=tk.W, padx=(10, 0), pady=5)
-        
-        # 预览区域
-        preview_label_frame = ttk.LabelFrame(main_frame, text="CSV数据预览 (前10行)", padding=10)
-        preview_label_frame.pack(fill=tk.BOTH, expand=True, pady=(10, 10))
-        
-        # 创建表格来显示CSV数据
-        self.create_preview_table(preview_label_frame)
-        
-        # 自动检测和设置默认值
-        self.auto_detect_columns()
-        
-        # 按钮框架
-        button_frame = ttk.Frame(main_frame)
-        button_frame.pack(fill=tk.X, pady=(10, 0))
-        
-        ttk.Button(button_frame, text="确定", command=self.on_ok).pack(side=tk.RIGHT, padx=(10, 0))
-        ttk.Button(button_frame, text="取消", command=self.on_cancel).pack(side=tk.RIGHT)
-        
-        # 等待对话框关闭
-        self.dialog.wait_window()
-    
-    def create_preview_table(self, parent_frame):
-        """创建CSV数据预览表格"""
-        # 创建Treeview来显示表格数据
-        tree_frame = ttk.Frame(parent_frame)
-        tree_frame.pack(fill=tk.BOTH, expand=True)
-        
-        # 创建滚动条
-        v_scrollbar = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL)
-        v_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        h_scrollbar = ttk.Scrollbar(tree_frame, orient=tk.HORIZONTAL)
-        h_scrollbar.pack(side=tk.BOTTOM, fill=tk.X)
-        
-        # 创建表格
-        self.preview_tree = ttk.Treeview(tree_frame, 
-                                        yscrollcommand=v_scrollbar.set,
-                                        xscrollcommand=h_scrollbar.set,
-                                        height=8)  # 减小高度以适合在同一页显示
-        self.preview_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        
-        # 配置滚动条
-        v_scrollbar.config(command=self.preview_tree.yview)
-        h_scrollbar.config(command=self.preview_tree.xview)
-        
-        # 设置列
-        if self.has_header:
-            # 有表头：使用实际列名
-            self.preview_tree["columns"] = self.columns
-            self.preview_tree["show"] = "tree headings"
-            
-            # 设置第一列（行号）
-            self.preview_tree.heading("#0", text="行号", anchor="w")
-            self.preview_tree.column("#0", width=50, anchor="w")
-            
-            # 设置其他列
-            for col in self.columns:
-                self.preview_tree.heading(col, text=col, anchor="w")
-                self.preview_tree.column(col, width=120, anchor="w")
-        else:
-            # 无表头：使用列号
-            column_names = [f"列{i+1}" for i in range(len(self.columns))]
-            self.preview_tree["columns"] = column_names
-            self.preview_tree["show"] = "tree headings"
-            
-            # 设置第一列（行号）
-            self.preview_tree.heading("#0", text="行号", anchor="w")
-            self.preview_tree.column("#0", width=50, anchor="w")
-            
-            # 设置其他列
-            for i, col_name in enumerate(column_names):
-                self.preview_tree.heading(col_name, text=col_name, anchor="w")
-                self.preview_tree.column(col_name, width=120, anchor="w")
-        
-        # 读取并显示CSV数据
-        self.load_csv_data()
-    
-    def load_csv_data(self):
-        """加载并显示CSV数据"""
-        try:
-            with open(self.csv_file, 'r', encoding='utf-8-sig') as f:
-                reader = csv.reader(f)
-                rows = list(reader)
-                
-                # 如果有表头，跳过第一行（已用作列标题）
-                data_rows = rows[1:] if self.has_header else rows
-                
-                # 只显示前10行数据
-                display_rows = data_rows[:10]
-                
-                for i, row in enumerate(display_rows):
-                    # 确保行数据长度与列数匹配
-                    while len(row) < len(self.columns):
-                        row.append("")  # 补充空值
-                    
-                    # 只取前len(self.columns)个值
-                    row_data = row[:len(self.columns)]
-                    
-                    # 插入数据到表格
-                    self.preview_tree.insert("", "end", text=str(i+1), values=row_data)
-                    
-        except Exception as e:
-            # 如果读取失败，显示错误信息
-            error_msg = f"读取CSV文件失败: {str(e)}"
-            self.preview_tree.insert("", "end", text="错误", values=[error_msg] + [""] * (len(self.columns)-1))
-    
-    def auto_detect_columns(self):
-        """自动检测列"""
-        for i, col in enumerate(self.columns):
-            col_lower = col.lower()
-            
-            # 文件名列检测
-            if any(keyword in col_lower for keyword in ['文件名', 'filename', 'file', 'name']):
-                self.filename_combo.current(i)
-            
-            # 纬度列检测  
-            elif any(keyword in col_lower for keyword in ['纬度', 'latitude', 'lat']):
-                self.latitude_combo.current(i)
-            
-            # 经度列检测
-            elif any(keyword in col_lower for keyword in ['经度', 'longitude', 'lng', 'lon']):
-                self.longitude_combo.current(i)
-            
-            # 海拔列检测
-            elif any(keyword in col_lower for keyword in ['海拔', 'altitude', 'alt', '高度', 'height']):
-                self.altitude_combo.current(i + 1)  # +1因为有"不使用"选项
-    
-    def on_ok(self):
-        """确定按钮"""
-        if not self.filename_var.get() or not self.latitude_var.get() or not self.longitude_var.get():
-            messagebox.showwarning("警告", "文件名、纬度和经度列为必选项！")
-            return
-        
-        # 检查是否有重复选择
-        selected = [self.filename_var.get(), self.latitude_var.get(), self.longitude_var.get()]
-        if self.altitude_var.get() and self.altitude_var.get() != "不使用":
-            selected.append(self.altitude_var.get())
-        
-        if len(selected) != len(set(selected)):
-            messagebox.showwarning("警告", "不能选择相同的列！")
-            return
-        
-        self.result = {
-            'filename': self.filename_var.get(),
-            'latitude': self.latitude_var.get(), 
-            'longitude': self.longitude_var.get(),
-            'altitude': self.altitude_var.get() if self.altitude_var.get() != "不使用" else None,
-            'has_header': self.has_header
-        }
-        self.dialog.destroy()
-    
-    def on_cancel(self):
-        """取消按钮"""
-        self.result = None
-        self.dialog.destroy()
-
 class GPSPhotoApp:
     def __init__(self, root):
         self.root = root
@@ -288,14 +41,6 @@ class GPSPhotoApp:
         self.output_folder = tk.StringVar()
         self.processing = False
         self.should_stop = False
-        
-        # CSV列映射
-        self.csv_column_mapping = {
-            'filename': None,
-            'latitude': None, 
-            'longitude': None,
-            'altitude': None
-        }
         
         # 默认加载cameraInfo/default.opt
         default_opt = os.path.join("cameraInfo", "default.opt")
@@ -483,21 +228,9 @@ class GPSPhotoApp:
             filetypes=[("CSV文件", "*.csv"), ("所有文件", "*.*")]
         )
         if filename:
-            # 打开列映射对话框
-            dialog = CSVColumnMappingDialog(self.root, filename)
-            if dialog.result:
-                self.csv_path.set(filename)
-                self.csv_column_mapping = dialog.result
-                self.log(f"✅ 已选择CSV文件: {os.path.basename(filename)}")
-                self.log(f"   文件名列: {dialog.result['filename']}")
-                self.log(f"   纬度列: {dialog.result['latitude']}")
-                self.log(f"   经度列: {dialog.result['longitude']}")
-                if dialog.result['altitude']:
-                    self.log(f"   海拔列: {dialog.result['altitude']}")
-                else:
-                    self.log(f"   海拔列: 不使用")
-            else:
-                self.log("❌ 未完成CSV列映射设置")
+            self.csv_path.set(filename)
+            self.log(f"✅ 已选择CSV文件: {os.path.basename(filename)}")
+            self.log(f"   支持格式: 纬度,经度,海拔,文件名")
         
     def select_image_folder(self):
         """选择图片文件夹"""
@@ -587,14 +320,10 @@ class GPSPhotoApp:
         except Exception as e:
             self.log(f"读取OPT文件失败: {e}")
         
-    def process_images_with_mapping(self):
-        """使用自定义列映射处理图片"""
+    def process_images_with_csv(self):
+        """处理CSV文件中的图片，支持格式: 纬度,经度,海拔,文件名"""
         if not self.csv_path.get() or not self.image_folder.get():
             messagebox.showerror("错误", "请先选择CSV文件和图片文件夹！")
-            return
-        
-        if not self.csv_column_mapping.get('filename'):
-            messagebox.showerror("错误", "请先设置CSV列映射！")
             return
         
         def process_task():
@@ -604,39 +333,31 @@ class GPSPhotoApp:
                 self.status_label.config(text="处理中...", foreground="orange")
                 self.progress.config(value=0)
                 
-                # 读取CSV文件
-                df = pd.read_csv(self.csv_path.get(), encoding='utf-8-sig')
-                
-                # 如果没有表头，使用列号
-                if not self.csv_column_mapping['has_header']:
-                    column_count = len(df.columns)
-                    df.columns = [f"列{i+1}" for i in range(column_count)]
+                # 读取CSV文件，格式: 纬度,经度,海拔,文件名
+                df = pd.read_csv(self.csv_path.get(), header=None, encoding='utf-8-sig')
                 
                 total_rows = len(df)
                 success_count = 0
                 failed_count = 0
                 
-                for index, row in df.iterrows():
+                for row_index, row in df.iterrows():
                     if self.should_stop:
                         self.log("处理已停止")
                         break
                     
                     try:
-                        # 根据用户映射提取数据
-                        filename = str(row[self.csv_column_mapping['filename']]).strip()
-                        latitude = float(row[self.csv_column_mapping['latitude']])
-                        longitude = float(row[self.csv_column_mapping['longitude']])
+                        # 计算行号（从1开始）
+                        row_num = success_count + failed_count + 1
                         
-                        # 海拔是可选的
-                        altitude = 0
-                        if self.csv_column_mapping['altitude']:
-                            try:
-                                altitude = float(row[self.csv_column_mapping['altitude']])
-                            except:
-                                altitude = 0
+                        # 按照格式解析: 纬度,经度,海拔,文件名
+                        latitude = float(row.iloc[0])
+                        longitude = float(row.iloc[1])
+                        altitude = float(row.iloc[2])
+                        filename = str(row.iloc[3]).strip()
                         
                         if not filename:
-                            self.log(f"第{index+1}行: 文件名为空，跳过")
+                            self.log(f"第{row_num}行: 文件名为空，跳过")
+                            failed_count += 1
                             continue
                         
                         # 构建图片路径
@@ -646,27 +367,35 @@ class GPSPhotoApp:
                                 image_path = f"{image_path}.jpg"
                             
                             if not os.path.isfile(image_path):
-                                self.log(f"第{index+1}行: 文件不存在: {filename}")
+                                self.log(f"第{row_num}行: 文件不存在: {filename}")
                                 failed_count += 1
                                 continue
                         
                         # 处理图像
-                        self.log(f"第{index+1}行: 处理 {filename} ({latitude:.6f}, {longitude:.6f})")
+                        self.log(f"第{row_num}行: 处理 {filename} ({latitude:.6f}, {longitude:.6f}, {altitude:.1f}m)")
                         
                         # 确定输出路径
                         output_path = None
                         if self.output_folder.get():
-                            output_path = os.path.join(self.output_folder.get(), filename)
+                            # 为每个照片生成处理时的实时时间戳命名：年月日时分秒+2位序号
+                            current_timestamp = time.strftime("%y%m%d%H%M%S")
+                            sequence = str(row_num).zfill(2)  # 2位序号
+                            new_filename = f"{current_timestamp}{sequence}.jpg"
+                            output_path = os.path.join(self.output_folder.get(), new_filename)
+                            
+                            # 记录原始文件名和新文件名的映射关系
+                            self.log(f"     原文件名: {filename} -> 新文件名: {new_filename}")
                         
                         # 导入处理函数
                         from batch_add_gps_info import set_gps_location
                         
-                        if set_gps_location(image_path, latitude, longitude, altitude, 0, 0, 0, 
+                        if set_gps_location(image_path, latitude, longitude, int(altitude), 0, 0, 0, 
                                            None, self.opt_file_path.get() if self.opt_file_path.get() else None, 
                                            output_path):
                             success_count += 1
                             if output_path:
-                                self.log(f"  ✅ 成功 (已保存至: {os.path.basename(self.output_folder.get())})")
+                                new_filename = os.path.basename(output_path)
+                                self.log(f"  ✅ 成功 (保存为: {new_filename})")
                             else:
                                 self.log(f"  ✅ 成功")
                         else:
@@ -674,16 +403,22 @@ class GPSPhotoApp:
                             self.log(f"  ❌ 失败")
                         
                         # 更新进度
-                        progress = (index + 1) / total_rows * 100
+                        current_total = success_count + failed_count
+                        progress = current_total / total_rows * 100
                         self.progress.config(value=progress)
+                        self.progress_label.config(text=f"{current_total} / {total_rows}")
                         self.root.update()
                         
                     except Exception as e:
                         failed_count += 1
-                        self.log(f"第{index+1}行: 错误 - {str(e)}")
+                        current_row = success_count + failed_count
+                        self.log(f"第{current_row}行: 错误 - {str(e)}")
                 
                 self.log("=" * 50)
                 self.log(f"处理完成: 成功={success_count}, 失败={failed_count}")
+                if self.output_folder.get():
+                    self.log(f"输出文件夹: {self.output_folder.get()}")
+                    self.log(f"文件命名格式: YYMMDDHHMMSSXX.jpg (XX为2位序号)")
                 self.status_label.config(text=f"完成: 成功{success_count}个, 失败{failed_count}个", 
                                        foreground="green" if failed_count == 0 else "orange")
                 
@@ -722,8 +457,6 @@ class GPSPhotoApp:
                 elif "开始" in message:
                     tag = "info"
             
-            # 插入文本
-            self.info_text.insert(tk.END, message + "\n", tag if tag else "")
             # 插入文本
             self.info_text.insert(tk.END, message + "\n", tag if tag else "")
             self.info_text.see(tk.END)
@@ -767,46 +500,28 @@ class GPSPhotoApp:
             self.log("=" * 50)
             self.log("开始预览文件信息...")
             
-            # 检测CSV格式
-            csv_format = detect_csv_format(csv_file)
-            self.log(f"CSV格式: {csv_format}")
-            
-            # 读取CSV文件
-            df = pd.read_csv(csv_file, header=None if csv_format == 'no_header' else 0)
+            # 读取CSV文件，格式: 纬度,经度,海拔,文件名
+            df = pd.read_csv(csv_file, header=None, encoding='utf-8-sig')
             csv_count = len(df)
+            self.log(f"CSV格式: 纬度,经度,海拔,文件名")
             self.log(f"CSV文件记录数: {csv_count}")
             
             # 显示前5行CSV数据
             self.log("CSV数据预览 (前5行):")
-            for i, row in df.head().iterrows():
-                if csv_format == 'no_header':
-                    # 无表头格式：显示完整数据包括姿态角
-                    filename = row[0] if len(row) > 0 else "N/A"
-                    timestamp = row[1] if len(row) > 1 else "N/A"
-                    longitude = row[2] if len(row) > 2 else "N/A"
-                    latitude = row[3] if len(row) > 3 else "N/A"
-                    altitude = row[4] if len(row) > 4 else "N/A"
-                    pitch = row[5] if len(row) > 5 else "N/A"
-                    roll = row[6] if len(row) > 6 else "N/A"
-                    yaw = row[7] if len(row) > 7 else "N/A"
+            preview_count = 0
+            for row_index, row in df.head().iterrows():
+                try:
+                    preview_count += 1
+                    latitude = row.iloc[0]
+                    longitude = row.iloc[1]
+                    altitude = row.iloc[2]
+                    filename = row.iloc[3]
                     
-                    self.log(f"  {i+1}: {filename} | {timestamp}")
-                    self.log(f"     经度:{longitude} 纬度:{latitude} 高度:{altitude}")
-                    self.log(f"     Pitch:{pitch} Roll:{roll} Yaw:{yaw}")
-                else:
-                    # 有表头格式：显示完整数据
-                    filename = row.iloc[0] if len(row) > 0 else "N/A"
-                    timestamp = row.iloc[1] if len(row) > 1 else "N/A"
-                    longitude = row.iloc[2] if len(row) > 2 else "N/A"
-                    latitude = row.iloc[3] if len(row) > 3 else "N/A"
-                    altitude = row.iloc[4] if len(row) > 4 else "N/A"
-                    pitch = row.iloc[5] if len(row) > 5 else "N/A"
-                    roll = row.iloc[6] if len(row) > 6 else "N/A"
-                    yaw = row.iloc[7] if len(row) > 7 else "N/A"
-                    
-                    self.log(f"  {i+1}: {filename} | {timestamp}")
-                    self.log(f"     经度:{longitude} 纬度:{latitude} 高度:{altitude}")
-                    self.log(f"     Pitch:{pitch} Roll:{roll} Yaw:{yaw}")
+                    self.log(f"  第{preview_count}行: {filename}")
+                    self.log(f"     纬度:{latitude} 经度:{longitude} 高度:{altitude}m")
+                except Exception as e:
+                    preview_count += 1
+                    self.log(f"  第{preview_count}行: 解析错误 - {str(e)}")
             
             # 统计图片文件
             image_files = [f for f in os.listdir(image_dir)
@@ -815,10 +530,14 @@ class GPSPhotoApp:
             self.log(f"图片文件数量: {image_count}")
             
             # 匹配分析
-            if csv_format == 'no_header':
-                csv_files = df[0].tolist()  # 第一列是文件名
-            else:
-                csv_files = df.iloc[:, 0].tolist()  # 第一列是文件名
+            csv_files = []
+            for _, row in df.iterrows():
+                try:
+                    filename = str(row.iloc[3]).strip()
+                    if filename:
+                        csv_files.append(filename)
+                except:
+                    continue
             
             matched = []
             unmatched_csv = []
@@ -876,11 +595,6 @@ class GPSPhotoApp:
         if self.processing:
             return
         
-        # 检查是否已设置列映射
-        if not self.csv_column_mapping.get('filename'):
-            messagebox.showwarning("警告", "请先选择CSV文件并设置列映射")
-            return
-        
         csv_file = self.csv_path.get()
         image_dir = self.image_folder.get()
         
@@ -888,8 +602,8 @@ class GPSPhotoApp:
             messagebox.showwarning("警告", "请先选择CSV文件和图片文件夹")
             return
         
-        # 使用自定义列映射处理
-        self.process_images_with_mapping()
+        # 使用新的CSV处理方法
+        self.process_images_with_csv()
 
 def main():
     """主函数"""
