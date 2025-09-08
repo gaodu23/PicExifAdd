@@ -14,13 +14,13 @@ def find_csv_and_jpg(folder):
 def run_all_tasks():
     # 输入输出路径配对
     task_pairs = [
-        (r'Z:\202509宁晋环境\0907\21', r'Z:\yolo\XY-YOLO-Tools\train_data\0907\images'),
-        (r'Z:\202509宁晋环境\0907\22', r'Z:\yolo\XY-YOLO-Tools\train_data\0907\images'),
-        (r'Z:\202509宁晋环境\0907\23', r'Z:\yolo\XY-YOLO-Tools\train_data\0907\images'),
-        (r'Z:\202509宁晋环境\0907\24', r'Z:\yolo\XY-YOLO-Tools\train_data\0907\images'),
-        (r'Z:\202509宁晋环境\0907\31', r'Z:\yolo\XY-YOLO-Tools\train_data\0907\images'),
-        (r'Z:\202509宁晋环境\0907\32', r'Z:\yolo\XY-YOLO-Tools\train_data\0907\images'),
-        (r'Z:\202509宁晋环境\0907\33', r'Z:\yolo\XY-YOLO-Tools\train_data\0907\images'),
+        (r'D:\202509宁晋环境\0907\21', r'D:\yolo\XY-YOLO-Tools\train_data\0907\images'),
+        (r'D:\202509宁晋环境\0907\22', r'D:\yolo\XY-YOLO-Tools\train_data\0907\images'),
+        (r'D:\202509宁晋环境\0907\23', r'D:\yolo\XY-YOLO-Tools\train_data\0907\images'),
+        (r'D:\202509宁晋环境\0907\24', r'D:\yolo\XY-YOLO-Tools\train_data\0907\images'),
+        (r'D:\202509宁晋环境\0907\31', r'D:\yolo\XY-YOLO-Tools\train_data\0907\images'),
+        (r'D:\202509宁晋环境\0907\32', r'D:\yolo\XY-YOLO-Tools\train_data\0907\images'),
+        (r'D:\202509宁晋环境\0907\33', r'D:\yolo\XY-YOLO-Tools\train_data\0907\images'),
     ]
     for idx, (folder, out_folder) in enumerate(task_pairs, 1):
         print(f"\n{'='*60}")
