@@ -5,6 +5,9 @@ import datetime
 from PIL import Image
 import piexif
 from fractions import Fraction
+import pandas as pd
+import time
+import glob
 
 # 在打包版本中，完全禁用XMP功能，避免依赖exempi库
 LIBXMP_AVAILABLE = False
@@ -345,143 +348,143 @@ def set_gps_location(image_path, lat, lng, altitude=0, roll=0, pitch=0, yaw=0, t
 
 def process_images_from_csv(csv_file, image_folder, opt_file=None, progress_callback=None, output_dir=None):
     """处理CSV文件并为对应图像添加地理信息
-    
-    Args:
-        csv_file: CSV文件路径
-        image_folder: 图片文件夹路径
-        opt_file: OPT文件路径
-        progress_callback: 进度回调函数
-        output_dir: 输出文件夹路径，若不提供则覆盖原图
+    支持4列或8列CSV，4列只写GPS和照片名，其他字段缺失时不写EXIF
+    输出照片重命名为处理时的年月日时分秒加两位序号
+    自动递归查找所有照片文件，支持大小写后缀和多级目录
     """
-    
     def log(message):
-        """日志输出函数"""
         if progress_callback:
             progress_callback(message)
         else:
             print(message)
-    
+
     success_count = 0
-    failed_count = 0 
+    failed_count = 0
     skipped_count = 0
     errors = []
-    
+
     if not os.path.exists(csv_file):
         error_msg = f"CSV文件不存在: {csv_file}"
         log(error_msg)
         return {'success': 0, 'failed': 1, 'skipped': 0, 'errors': [error_msg]}
-    
+
     if not os.path.exists(image_folder):
         error_msg = f"图像文件夹不存在: {image_folder}"
         log(error_msg)
         return {'success': 0, 'failed': 1, 'skipped': 0, 'errors': [error_msg]}
-    
-    # 使用detect_csv_format来检测格式
-    csv_format = detect_csv_format(csv_file)
-    log(f"CSV格式: {csv_format}")
-    
+
     try:
-        # 读取CSV文件
-        import pandas as pd
-        if csv_format == 'no_header':
-            df = pd.read_csv(csv_file, header=None)
-            # 无表头格式：文件名,时间,经度,纬度,高度,Pitch,Roll,Yaw
-            columns = ['filename', 'timestamp', 'longitude', 'latitude', 'altitude', 'pitch', 'roll', 'yaw']
-            if len(df.columns) >= 8:
-                df.columns = columns[:len(df.columns)]
-            else:
-                log(f"CSV列数不足，需要至少8列，实际只有{len(df.columns)}列")
-                return {'success': 0, 'failed': 1, 'skipped': 0, 'errors': ['CSV格式错误：列数不足']}
-        else:
-            df = pd.read_csv(csv_file)
-        
-        total_rows = len(df)
-        log(f"开始处理 {total_rows} 条记录...")
-        log("-" * 40)
-        
-        for index, row in df.iterrows():
-            try:
-                # 更新进度
-                if progress_callback:
-                    progress_callback(f"第{index+1}行: 正在处理...", index, total_rows)
-                # 根据格式提取数据
-                if csv_format == 'no_header':
-                    image_name = str(row['filename']).strip()
-                    timestamp = str(row['timestamp']).strip()
-                    longitude = float(row['longitude'])
-                    latitude = float(row['latitude'])
-                    altitude = float(row['altitude']) if pd.notna(row['altitude']) else 0
-                    pitch = float(row['pitch']) if pd.notna(row['pitch']) else 0
-                    roll = float(row['roll']) if pd.notna(row['roll']) else 0
-                    yaw = float(row['yaw']) if pd.notna(row['yaw']) else 0
-                else:
-                    # 带表头的处理方式
-                    image_name = str(row.get('文件名', row.get('filename', ''))).strip()
-                    timestamp = str(row.get('时间', row.get('timestamp', ''))).strip()
-                    longitude = float(row.get('经度', row.get('longitude', 0)))
-                    latitude = float(row.get('纬度', row.get('latitude', 0)))
-                    altitude = float(row.get('高度', row.get('altitude', 0))) if pd.notna(row.get('高度', row.get('altitude', 0))) else 0
-                    pitch = float(row.get('Pitch', row.get('pitch', 0))) if pd.notna(row.get('Pitch', row.get('pitch', 0))) else 0
-                    roll = float(row.get('Roll', row.get('roll', 0))) if pd.notna(row.get('Roll', row.get('roll', 0))) else 0
-                    yaw = float(row.get('Yaw', row.get('yaw', row.get('方向角', 0)))) if pd.notna(row.get('Yaw', row.get('yaw', row.get('方向角', 0)))) else 0
-                
-                if not image_name:
-                    log(f"第{index+1}行: 文件名为空，跳过")
-                    skipped_count += 1
-                    continue
-                
-                # 构建完整的图像路径
-                image_path = os.path.join(image_folder, image_name)
-                
-                # 检查文件是否存在
-                if not os.path.isfile(image_path):
-                    if not image_path.lower().endswith(('.jpg', '.jpeg')):
-                        image_path = f"{image_path}.jpg"
-                    
-                    if not os.path.isfile(image_path):
-                        log(f"第{index+1}行: 文件不存在: {image_name}")
-                        failed_count += 1
-                        errors.append(f"文件不存在: {image_name}")
-                        continue
-                
-                # 处理图像
-                log(f"第{index+1}行: 处理 {image_name} ({latitude:.6f}, {longitude:.6f})")
-                
-                # 确定输出路径
-                output_path = None
-                if output_dir:
-                    output_path = os.path.join(output_dir, image_name)
-                
-                if set_gps_location(image_path, latitude, longitude, altitude, roll, pitch, yaw, timestamp, opt_file, output_path):
-                    success_count += 1
-                    if output_path:
-                        log(f"  ✓ 成功 (已保存至: {os.path.basename(output_dir)})")
-                    else:
-                        log(f"  ✓ 成功")
-                    # 更新完成进度
-                    if progress_callback:
-                        progress_callback(f"第{index+1}行: 处理完成", index + 1, total_rows)
-                else:
-                    failed_count += 1
-                    errors.append(f"EXIF写入失败: {image_name}")
-                    log(f"  ✗ 失败")
-                    # 更新失败进度
-                    if progress_callback:
-                        progress_callback(f"第{index+1}行: 处理失败", index + 1, total_rows)
-                    
-            except Exception as e:
-                failed_count += 1
-                errors.append(f"第{index+1}行处理错误: {str(e)}")
-                log(f"第{index+1}行: 错误 - {str(e)}")
-        
-        log("-" * 40)
-        log(f"处理完成: 成功={success_count}, 失败={failed_count}, 跳过={skipped_count}")
-        
+        df = pd.read_csv(csv_file, header=None, encoding='utf-8-sig')
     except Exception as e:
-        error_msg = f"读取CSV文件失败: {str(e)}"
+        error_msg = f"读取CSV文件失败: {e}"
         log(error_msg)
         return {'success': 0, 'failed': 1, 'skipped': 0, 'errors': [error_msg]}
-    
+
+    total_rows = len(df)
+    log(f"开始处理 {total_rows} 条记录...")
+    log("-" * 40)
+
+    # 新增：递归查找所有照片文件，建立小写名到实际路径映射
+    photo_map = {}
+    for ext in ['jpg', 'jpeg', 'JPG', 'JPEG']:
+        for f in glob.glob(os.path.join(image_folder, '**', f'*.{ext}'), recursive=True):
+            photo_map[os.path.basename(f).lower()] = f
+
+    # 新增：准备新CSV内容
+    new_csv_rows = []
+    csv_timestamp = time.strftime("%y%m%d%H%M%S")
+    new_csv_name = f"{csv_timestamp}.csv"
+    if output_dir:
+        new_csv_path = os.path.join(output_dir, new_csv_name)
+    else:
+        new_csv_path = os.path.join(os.path.dirname(csv_file), new_csv_name)
+
+    for i, (index, row) in enumerate(df.iterrows()):
+        try:
+            # 4列格式：纬度,经度,高度,文件名
+            if len(row) == 4:
+                latitude = float(row[0])
+                longitude = float(row[1])
+                altitude = int(float(row[2]))
+                image_name = str(row[3]).strip()
+                roll = pitch = yaw = 0
+                timestamp = None
+            # 8列格式：文件名,时间,经度,纬度,高度,Pitch,Roll,Yaw
+            elif len(row) >= 8:
+                image_name = str(row[0]).strip()
+                timestamp = str(row[1]).strip()
+                longitude = float(row[2])
+                latitude = float(row[3])
+                altitude = int(float(row[4])) if pd.notna(row[4]) else 0
+                pitch = int(float(row[5])) if pd.notna(row[5]) else 0
+                roll = int(float(row[6])) if pd.notna(row[6]) else 0
+                yaw = int(float(row[7])) if pd.notna(row[7]) else 0
+            else:
+                log(f"第{i+1}行: CSV列数不足，仅支持4列或8列，跳过")
+                failed_count += 1
+                errors.append(f"第{i+1}行: 列数不足")
+                continue
+
+            if not image_name:
+                log(f"第{i+1}行: 文件名为空，跳过")
+                skipped_count += 1
+                continue
+
+            # 用小写查找实际路径
+            image_path = photo_map.get(image_name.lower())
+            if not image_path:
+                log(f"第{i+1}行: 文件不存在: {image_name}")
+                failed_count += 1
+                errors.append(f"文件不存在: {image_name}")
+                continue
+
+            log(f"第{i+1}行: 处理 {image_name} ({latitude:.6f}, {longitude:.6f}, {altitude}m)")
+            output_path = None
+            if output_dir:
+                # 生成处理时的时间戳+原照片名后四位
+                current_timestamp = time.strftime("%y%m%d%H%M%S")
+                # 提取原照片名（不含扩展名）后四位，不足补零
+                base_name = os.path.splitext(image_name)[0]
+                last4 = base_name[-4:].rjust(4, '0')
+                new_filename = f"{current_timestamp}{last4}.jpg"
+                output_path = os.path.join(output_dir, new_filename)
+                log(f"  原文件名: {image_name} -> 新文件名: {new_filename}")
+
+            # 只写有的EXIF字段
+            from batch_add_gps_info import set_gps_location
+            if set_gps_location(image_path, latitude, longitude, altitude, roll, pitch, yaw, timestamp, opt_file, output_path):
+                success_count += 1
+                log(f"  ✓ 成功 (已保存至: {new_filename})" if output_path else "  ✓ 成功")
+            else:
+                failed_count += 1
+                errors.append(f"EXIF写入失败: {image_name}")
+                log(f"  ✗ 失败")
+            
+            # 新增：记录新CSV行
+            new_row = list(row) + [new_filename if output_dir else image_name]
+            new_csv_rows.append(new_row)
+        except Exception as e:
+            failed_count += 1
+            errors.append(f"第{i+1}行处理错误: {str(e)}")
+            log(f"第{i+1}行: 错误 - {str(e)}")
+
+    # 新增：写入新CSV
+    try:
+        with open(new_csv_path, 'w', newline='', encoding='utf-8-sig') as f:
+            writer = csv.writer(f)
+            # 写表头（原表头+新照片名），如无表头则用默认
+            if hasattr(df, 'columns') and df.columns is not None:
+                header = [f"列{i+1}" for i in range(len(df.columns))] + ["新照片名"]
+                writer.writerow(header)
+            else:
+                writer.writerow(["新照片名"])
+            writer.writerows(new_csv_rows)
+        log(f"已生成新旧照片名对照表: {new_csv_path}")
+    except Exception as e:
+        log(f"新CSV写入失败: {e}")
+
+    log("-" * 40)
+    log(f"处理完成: 成功={success_count}, 失败={failed_count}, 跳过={skipped_count}")
     return {
         'success': success_count,
         'failed': failed_count,
