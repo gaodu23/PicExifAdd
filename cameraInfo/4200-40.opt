@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<OpticalProperties version="1.0">
+	<Id>2</Id>
+	<Name>Photogroup 3</Name>
+	<Description/>
+	<ImageDimensions>
+		<Width>7952</Width>
+		<Height>5304</Height>
+	</ImageDimensions>
+	<CameraModelType>Perspective</CameraModelType>
+	<CameraModelBand>Visible</CameraModelBand>
+	<SensorSize>35.9</SensorSize>
+	<FocalLength>40.169</FocalLength>
+	<Distortion>
+		<K1>0.0251513376887743</K1>
+		<K2>-0.0454005092102525</K2>
+		<K3>0.0868331954305788</K3>
+		<P1>0.000493657397703806</P1>
+		<P2>-9.66251177204553e-05</P2>
+		<Direct>true</Direct>
+	</Distortion>
+	<PrincipalPoint>
+		<X>3978.83953800754</X>
+		<Y>2584.94312527201</Y>
+	</PrincipalPoint>
+	<AspectRatio>1</AspectRatio>
+	<Skew>0</Skew>
+	<Exif>
+		<Make>SONY</Make>
+		<Model>ILCE-7RM2</Model>
+		<LensModel>----</LensModel>
+	</Exif>
+</OpticalProperties>
